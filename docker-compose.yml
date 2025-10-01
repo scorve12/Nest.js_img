@@ -2,6 +2,27 @@
 version: '3.8'
 
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: upload-app
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_USE_SSL=false
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - minio
+    networks:
+      - app-network
   minio:
     image: minio/minio:latest
     container_name: minio
