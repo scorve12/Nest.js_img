@@ -50,44 +50,53 @@ export class UploadService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    await this.createBucketIfNotExists();
+    await this.ensureBucketExists();
   }
 
-  private async createBucketIfNotExists() {
+  private async ensureBucketExists() {
     try {
       await this.s3Client.send(
         new HeadBucketCommand({ Bucket: this.bucketName }),
       );
-      console.log(`Bucket ${this.bucketName} already exists`);
-    } catch (error: any) {
-      if (error.name === 'NotFound') {
-        // 버킷 생성
+      console.log(`Bucket ${this.bucketName} exists`);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'NotFound') {
         await this.s3Client.send(
           new CreateBucketCommand({ Bucket: this.bucketName }),
         );
         console.log(`Bucket ${this.bucketName} created`);
-      
-        // Public 읽기 권한 설정
-        const bucketPolicy = {
-          Version: '2012-10-17',
-          Statement: [
-            {
-              Effect: 'Allow',
-              Principal: '*',
-              Action: ['s3:GetObject'],
-              Resource: [`arn:aws:s3:::${this.bucketName}/*`],
-            },
-          ],
-        };
-      
-        await this.s3Client.send(
-          new PutBucketPolicyCommand({
-            Bucket: this.bucketName,
-            Policy: JSON.stringify(bucketPolicy),
-          }),
-        );
-        console.log(`Bucket ${this.bucketName} policy set to public read`);
+      } else {
+        throw error;
       }
+    }
+
+    // 항상 public 정책 설정 시도
+    await this.setPublicPolicy();
+  }
+
+  private async setPublicPolicy() {
+    try {
+      const policy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Effect: 'Allow',
+            Principal: { AWS: ['*'] },
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${this.bucketName}/*`],
+          },
+        ],
+      };
+
+      await this.s3Client.send(
+        new PutBucketPolicyCommand({
+          Bucket: this.bucketName,
+          Policy: JSON.stringify(policy),
+        }),
+      );
+      console.log(`Bucket ${this.bucketName} set to public`);
+    } catch (error) {
+      console.error('Failed to set public policy:', error);
     }
   }
 
@@ -97,17 +106,17 @@ export class UploadService implements OnModuleInit {
   }
 
   private generateUrl(key: string): string {
-  const publicEndpoint = this.configService.get<string>('AWS_PUBLIC_ENDPOINT') 
-    || 'http://localhost:9000';
-  return `${publicEndpoint}/${this.bucketName}/${key}`;
-}
+    const publicEndpoint =
+      this.configService.get<string>('AWS_PUBLIC_ENDPOINT') ||
+      'http://localhost:9000';
+    return `${publicEndpoint}/${this.bucketName}/${key}`;
+  }
 
   async uploadFile(file: Express.Multer.File, uploadFileDto: UploadFileDto) {
     const extension = this.getFileExtension(file.originalname);
 
-    // DB에 먼저 저장하여 UUID 생성
     const upload = this.uploadRepository.create({
-      key: '', // 임시값
+      key: '',
       size: file.size,
       mimetype: file.mimetype,
       type: uploadFileDto.type,
@@ -122,38 +131,41 @@ export class UploadService implements OnModuleInit {
 
     await this.uploadRepository.save(upload);
 
-    // UUID를 사용하여 key 생성
     const filename = `${upload.id}${extension}`;
     const key = `uploads/${filename}`;
 
-    // S3에 업로드
-    const command = new PutObjectCommand({
-      Bucket: this.bucketName,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    });
+    try {
+      const command = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      });
 
-    await this.s3Client.send(command);
+      await this.s3Client.send(command);
 
-    // key 업데이트
-    upload.key = key;
-    await this.uploadRepository.save(upload);
+      upload.key = key;
+      await this.uploadRepository.save(upload);
 
-    return {
-      id: upload.id,
-      url: this.generateUrl(key),
-      key,
-      type: upload.type,
-      size: file.size,
-      mimetype: file.mimetype,
-      address: upload.address,
-      latitude: upload.latitude,
-      longitude: upload.longitude,
-      metadata: upload.metadata,
-      createdAt: upload.createdAt,
-      updatedAt: upload.updatedAt,
-    };
+      return {
+        id: upload.id,
+        url: this.generateUrl(key),
+        key,
+        type: upload.type,
+        size: file.size,
+        mimetype: file.mimetype,
+        address: upload.address,
+        latitude: upload.latitude,
+        longitude: upload.longitude,
+        metadata: upload.metadata,
+        createdAt: upload.createdAt,
+        updatedAt: upload.updatedAt,
+      };
+    } catch (error) {
+      await this.uploadRepository.remove(upload);
+      console.error('Error uploading file to S3:', error);
+      throw error;
+    }
   }
 
   async getList(type?: DisasterType, page: number = 1, limit: number = 10) {
