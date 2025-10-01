@@ -8,6 +8,7 @@ import {
   PutObjectCommand,
   CreateBucketCommand,
   HeadBucketCommand,
+  PutBucketPolicyCommand,
 } from '@aws-sdk/client-s3';
 import { Upload } from './entities/upload.entity';
 import { UploadFileDto } from './dto/upload-file.dto';
@@ -60,10 +61,32 @@ export class UploadService implements OnModuleInit {
       console.log(`Bucket ${this.bucketName} already exists`);
     } catch (error: any) {
       if (error.name === 'NotFound') {
+        // 버킷 생성
         await this.s3Client.send(
           new CreateBucketCommand({ Bucket: this.bucketName }),
         );
         console.log(`Bucket ${this.bucketName} created`);
+      
+        // Public 읽기 권한 설정
+        const bucketPolicy = {
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Effect: 'Allow',
+              Principal: '*',
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${this.bucketName}/*`],
+            },
+          ],
+        };
+      
+        await this.s3Client.send(
+          new PutBucketPolicyCommand({
+            Bucket: this.bucketName,
+            Policy: JSON.stringify(bucketPolicy),
+          }),
+        );
+        console.log(`Bucket ${this.bucketName} policy set to public read`);
       }
     }
   }
@@ -74,9 +97,10 @@ export class UploadService implements OnModuleInit {
   }
 
   private generateUrl(key: string): string {
-    const endpoint = this.configService.get<string>('AWS_ENDPOINT');
-    return `${endpoint}/${this.bucketName}/${key}`;
-  }
+  const publicEndpoint = this.configService.get<string>('AWS_PUBLIC_ENDPOINT') 
+    || 'http://localhost:9000';
+  return `${publicEndpoint}/${this.bucketName}/${key}`;
+}
 
   async uploadFile(file: Express.Multer.File, uploadFileDto: UploadFileDto) {
     const extension = this.getFileExtension(file.originalname);

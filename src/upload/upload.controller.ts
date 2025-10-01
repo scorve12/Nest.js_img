@@ -11,6 +11,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
@@ -20,6 +21,20 @@ import { DisasterType } from './entities/upload.entity';
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
+
+  @Get('list')
+  async getList(
+    @Query('type') type?: DisasterType,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return await this.uploadService.getList(type, page, limit);
+  }
+
+  @Get(':id')
+  async getOne(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.uploadService.getOne(id);
+  }
 
   @Post()
   @UseInterceptors(FileInterceptor('file'))
@@ -38,19 +53,5 @@ export class UploadController {
     @Body() uploadFileDto: UploadFileDto,
   ) {
     return await this.uploadService.uploadFile(file, uploadFileDto);
-  }
-
-  @Get()
-  async getList(
-    @Query('type') type?: DisasterType,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-  ) {
-    return await this.uploadService.getList(type, page, limit);
-  }
-
-  @Get(':id')
-  async getOne(@Param('id') id: string) {
-    return await this.uploadService.getOne(id);
   }
 }
