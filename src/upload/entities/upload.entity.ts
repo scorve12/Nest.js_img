@@ -7,12 +7,20 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum DisasterType {
+  FLOOD = '홍수',
+  EARTHQUAKE = '지진',
+  TYPHOON = '태풍',
+  FIRE = '화재',
+  LANDSLIDE = '산사태',
+}
+
 @Entity('uploads')
 export class Upload {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-  
-  @Column()
+
+  @Column({ unique: true })
   key: string;
 
   @Column('jsonb', { nullable: true })
@@ -20,9 +28,9 @@ export class Upload {
 
   @Column({
     type: 'enum',
-    enum: ['홍수', '지진'],
+    enum: DisasterType,
   })
-  type: '홍수' | '지진';
+  type: DisasterType;
 
   @Column('decimal', { precision: 10, scale: 8, nullable: true })
   latitude: number;
