@@ -1,5 +1,5 @@
 // src/upload/upload.service.ts
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +11,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { Upload } from './entities/upload.entity';
 import { UploadFileDto } from './dto/upload-file.dto';
+import { DisasterType } from './entities/upload.entity';
 
 @Injectable()
 export class UploadService implements OnModuleInit {
@@ -128,6 +129,49 @@ export class UploadService implements OnModuleInit {
       metadata: upload.metadata,
       createdAt: upload.createdAt,
       updatedAt: upload.updatedAt,
+    };
+  }
+
+  async getList(type?: DisasterType, page: number = 1, limit: number = 10) {
+    const query = this.uploadRepository.createQueryBuilder('upload');
+
+    if (type) {
+      query.where('upload.type = :type', { type });
+    }
+
+    query
+      .orderBy('upload.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await query.getManyAndCount();
+
+    const itemsWithUrl = items.map((item) => ({
+      ...item,
+      url: this.generateUrl(item.key),
+    }));
+
+    return {
+      items: itemsWithUrl,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getOne(id: string) {
+    const upload = await this.uploadRepository.findOne({
+      where: { id },
+    });
+
+    if (!upload) {
+      throw new NotFoundException(`Upload with ID ${id} not found`);
+    }
+
+    return {
+      ...upload,
+      url: this.generateUrl(upload.key),
     };
   }
 }
