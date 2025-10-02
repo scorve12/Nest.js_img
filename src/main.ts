@@ -9,8 +9,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // 파일 업로드를 위한 body 크기 제한 증가 (CORS 전에 설정)
-  app.use(json({ limit: '200mb' }));
-  app.use(urlencoded({ extended: true, limit: '200mb' }));
+  app.use(json({ limit: '300mb' }));
+  app.use(urlencoded({ extended: true, limit: '300mb' }));
 
   app.enableCors();
   app.useGlobalPipes(
@@ -25,7 +25,7 @@ async function bootstrap() {
   // body size 제한 증가
   app.use((req, res, next) => {
     if (req.path === '/upload') {
-      req.setTimeout(300000); // 5분 타임아웃
+      req.setTimeout(600000); // 10분 타임아웃
     }
     next();
   });
