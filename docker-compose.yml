@@ -22,6 +22,7 @@ services:
       - DB_USERNAME=postgres
       - DB_PASSWORD=postgres
       - DB_DATABASE=uploaddb
+      - BODY_SIZE_LIMIT=500mb
     volumes:
       - .:/app
       - /app/node_modules
@@ -30,6 +31,13 @@ services:
       - postgres
     networks:
       - app-network
+    # 타임아웃 및 리소스 설정
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      disable: true
       
   minio:
     image: minio/minio:latest

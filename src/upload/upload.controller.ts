@@ -8,10 +8,8 @@ import {
   UseInterceptors,
   UploadedFile,
   Body,
-  ParseFilePipe,
-  MaxFileSizeValidator,
-  FileTypeValidator,
   ParseUUIDPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
@@ -71,21 +69,65 @@ export class UploadController {
       required: ['file', 'type'],
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 500 * 1024 * 1024, // 500MB
+      },
+    }),
+  )
   async uploadFile(
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 300 * 1024 * 1024 }), // 300MB
-          new FileTypeValidator({
-            fileType: /\/(jpg|jpeg|png|gif|mp4|avi|mov|wmv)$/,
-          }),
-        ],
-      }),
-    )
-    file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
     @Body() uploadFileDto: UploadFileDto,
   ) {
+    if (!file) {
+      throw new BadRequestException('파일이 업로드되지 않았습니다.');
+    }
+
+    // 파일 타입 검증 (.ksplat 포함)
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'video/mp4',
+      'video/avi',
+      'video/quicktime',
+      'video/x-ms-wmv',
+      'application/octet-stream', // .ksplat 및 기타 바이너리 파일
+    ];
+
+    const allowedExtensions = [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.mp4',
+      '.avi',
+      '.mov',
+      '.wmv',
+      '.ksplat',
+    ];
+
+    const fileExtension = file.originalname
+      .toLowerCase()
+      .substring(file.originalname.lastIndexOf('.'));
+
+    if (
+      !allowedMimeTypes.includes(file.mimetype) &&
+      !allowedExtensions.includes(fileExtension)
+    ) {
+      throw new BadRequestException(
+        '허용되지 않는 파일 형식입니다. (jpg, jpeg, png, gif, mp4, avi, mov, wmv, ksplat만 가능)',
+      );
+    }
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      throw new BadRequestException(
+        `허용되지 않는 파일 확장자입니다. (${allowedExtensions.join(', ')}만 가능)`,
+      );
+    }
+
     return await this.uploadService.uploadFile(file, uploadFileDto);
   }
 }

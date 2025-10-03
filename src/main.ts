@@ -3,14 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
-  // 파일 업로드를 위한 body 크기 제한 증가 (CORS 전에 설정)
-  app.use(json({ limit: '300mb' }));
-  app.use(urlencoded({ extended: true, limit: '300mb' }));
 
   app.enableCors();
   app.useGlobalPipes(
@@ -22,14 +17,6 @@ async function bootstrap() {
     }),
   );
 
-  // body size 제한 증가
-  app.use((req, res, next) => {
-    if (req.path === '/upload') {
-      req.setTimeout(600000); // 10분 타임아웃
-    }
-    next();
-  });
-
   // Swagger 설정
   const config = new DocumentBuilder()
     .setTitle('Upload API')
@@ -39,8 +26,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
+  const server = await app.listen(3000);
+  
+  // 서버 타임아웃 설정 (30분)
+  server.setTimeout(1800000);
+  server.keepAliveTimeout = 1800000;
+  server.headersTimeout = 1900000;
 
-  await app.listen(3000);
   console.log('Application is running on: http://localhost:3000');
   console.log('Swagger is running on: http://localhost:3000/api');
 }
