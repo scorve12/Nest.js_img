@@ -38,4 +38,13 @@ export class UploadFileDto {
   @IsOptional()
   @IsNumber()
   longitude?: number;
+
+  @ApiProperty({
+    required: false,
+    description: '설명',
+    example: '재난 현장에 대한 상세 설명',
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

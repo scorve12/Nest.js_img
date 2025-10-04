@@ -123,6 +123,7 @@ export class UploadService implements OnModuleInit {
       address: uploadFileDto.address,
       latitude: uploadFileDto.latitude,
       longitude: uploadFileDto.longitude,
+      description: uploadFileDto.description,
       metadata: {
         extension,
         encoding: file.encoding,
@@ -157,6 +158,7 @@ export class UploadService implements OnModuleInit {
         address: upload.address,
         latitude: upload.latitude,
         longitude: upload.longitude,
+        description: upload.description,
         metadata: upload.metadata,
         createdAt: upload.createdAt,
         updatedAt: upload.updatedAt,

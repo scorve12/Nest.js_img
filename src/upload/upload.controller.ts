@@ -65,6 +65,9 @@ export class UploadController {
         longitude: {
           type: 'number',
         },
+        description: {
+          type: 'string',
+        },
       },
       required: ['file', 'type'],
     },

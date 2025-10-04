@@ -41,6 +41,9 @@ export class Upload {
   @Column({ nullable: true })
   address: string;
 
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
   @Column()
   size: number;
 
