@@ -212,4 +212,47 @@ export class UploadService implements OnModuleInit {
       url: this.generateUrl(upload.key),
     };
   }
+
+  async getStatistics() {
+    // 전체 업로드 수
+    const totalUploads = await this.uploadRepository.count();
+
+    // 월별 업로드 통계
+    const monthlyStatsRaw = await this.uploadRepository
+      .createQueryBuilder('upload')
+      .select('EXTRACT(YEAR FROM upload.createdAt)', 'year')
+      .addSelect('EXTRACT(MONTH FROM upload.createdAt)', 'month')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('year')
+      .addGroupBy('month')
+      .orderBy('year', 'DESC')
+      .addOrderBy('month', 'DESC')
+      .getRawMany();
+
+    const monthlyStats = monthlyStatsRaw.map((row) => ({
+      year: parseInt(row.year),
+      month: parseInt(row.month),
+      count: parseInt(row.count),
+    }));
+
+    // 재난 유형별 통계
+    const disasterTypeStatsRaw = await this.uploadRepository
+      .createQueryBuilder('upload')
+      .select('upload.type', 'type')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('upload.type')
+      .orderBy('count', 'DESC')
+      .getRawMany();
+
+    const disasterTypeStats = disasterTypeStatsRaw.map((row) => ({
+      type: row.type,
+      count: parseInt(row.count),
+    }));
+
+    return {
+      totalUploads,
+      monthlyStats,
+      disasterTypeStats,
+    };
+  }
 }

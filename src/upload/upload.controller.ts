@@ -15,12 +15,24 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
 import { UploadFileDto } from './dto/upload-file.dto';
+import { UploadStatisticsResponse } from './dto/statistics.dto';
 import { DisasterType } from './entities/upload.entity';
 
 @ApiTags('Upload')
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
+
+  @Get('statistics')
+  @ApiOperation({ summary: '업로드 통계 조회' })
+  @ApiQuery({
+    name: 'response',
+    type: UploadStatisticsResponse,
+    description: '월별 업로드 수, 전체 업로드 수, 재난 유형별 통계',
+  })
+  async getStatistics(): Promise<UploadStatisticsResponse> {
+    return await this.uploadService.getStatistics();
+  }
 
   @Get('list')
   @ApiOperation({ summary: '업로드 목록 조회' })
