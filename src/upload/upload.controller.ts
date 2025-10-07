@@ -17,6 +17,7 @@ import { UploadService } from './upload.service';
 import { UploadFileDto } from './dto/upload-file.dto';
 import { UploadStatisticsResponse } from './dto/statistics.dto';
 import { DisasterType } from './entities/upload.entity';
+import { UploadMarkerDto } from './dto/upload-marker.dto';
 
 @ApiTags('Upload')
 @Controller('upload')
@@ -45,6 +46,59 @@ export class UploadController {
     @Query('limit') limit: number = 10,
   ) {
     return await this.uploadService.getList(type, page, limit);
+  }
+
+  @Get('marker')
+  @ApiOperation({ summary: '전체 마커 목록 조회' })
+  async getMarkers() {
+    return await this.uploadService.getMarkers();
+  }
+
+  @Get('marker/upload/:uploadId')
+  @ApiOperation({ summary: '특정 업로드의 마커 목록 조회' })
+  async getMarkersByUploadId(@Param('uploadId', ParseUUIDPipe) uploadId: string) {
+    return await this.uploadService.getMarkersByUploadId(uploadId);
+  }
+
+  @Post('marker')
+  @ApiOperation({ summary: '마커 생성' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        uploadId: {
+          type: 'string',
+          format: 'uuid',
+        },
+        markerLatitude: {
+          type: 'number',
+        },
+        markerLongitude: {
+          type: 'number',
+        },
+        markerAddress: {
+          type: 'string',
+        },
+      },
+      required: ['uploadId', 'markerLatitude', 'markerLongitude', 'markerAddress'],
+    },
+  })
+  @UseInterceptors(FileInterceptor(''))
+  async createMarker(@Body() body: any) {
+    const uploadMarkerDto: UploadMarkerDto = {
+      uploadId: body.uploadId,
+      markerLatitude: parseFloat(body.markerLatitude),
+      markerLongitude: parseFloat(body.markerLongitude),
+      markerAddress: body.markerAddress,
+    };
+    return await this.uploadService.createMarker(uploadMarkerDto);
+  }
+
+  @Get('marker/:id')
+  @ApiOperation({ summary: '마커 상세 조회' })
+  async getMarker(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.uploadService.getMarker(id);
   }
 
   @Get(':id')

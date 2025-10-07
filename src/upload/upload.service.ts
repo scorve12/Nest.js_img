@@ -13,6 +13,8 @@ import {
 import { Upload } from './entities/upload.entity';
 import { UploadFileDto } from './dto/upload-file.dto';
 import { DisasterType } from './entities/upload.entity';
+import { UploadMarker } from './entities/upload-marker.entity';
+import { UploadMarkerDto } from './dto/upload-marker.dto';
 
 @Injectable()
 export class UploadService implements OnModuleInit {
@@ -23,6 +25,8 @@ export class UploadService implements OnModuleInit {
     private configService: ConfigService,
     @InjectRepository(Upload)
     private uploadRepository: Repository<Upload>,
+    @InjectRepository(UploadMarker)
+    private uploadMarkerRepository: Repository<UploadMarker>,
   ) {
     const endpoint = this.configService.get<string>('AWS_ENDPOINT');
     const region = this.configService.get<string>('AWS_REGION');
@@ -254,5 +258,64 @@ export class UploadService implements OnModuleInit {
       monthlyStats,
       disasterTypeStats,
     };
+  }
+
+  async createMarker(uploadMarkerDto: UploadMarkerDto) {
+    // uploadId가 유효한지 확인
+    const upload = await this.uploadRepository.findOne({
+      where: { id: uploadMarkerDto.uploadId },
+    });
+
+    if (!upload) {
+      throw new NotFoundException(
+        `Upload with ID ${uploadMarkerDto.uploadId} not found`,
+      );
+    }
+
+    const marker = this.uploadMarkerRepository.create(uploadMarkerDto);
+    await this.uploadMarkerRepository.save(marker);
+    return marker;
+  }
+
+  async getMarkers() {
+    return await this.uploadMarkerRepository.find({
+      relations: ['upload'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  async getMarkersByUploadId(uploadId: string) {
+    // uploadId가 유효한지 확인
+    const upload = await this.uploadRepository.findOne({
+      where: { id: uploadId },
+    });
+
+    if (!upload) {
+      throw new NotFoundException(`Upload with ID ${uploadId} not found`);
+    }
+
+    const markers = await this.uploadMarkerRepository.find({
+      where: { uploadId },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    return markers;
+  }
+
+  async getMarker(id: string) {
+    const marker = await this.uploadMarkerRepository.findOne({
+      where: { id },
+      relations: ['upload'],
+    });
+
+    if (!marker) {
+      throw new NotFoundException(`Marker with ID ${id} not found`);
+    }
+
+    return marker;
   }
 }

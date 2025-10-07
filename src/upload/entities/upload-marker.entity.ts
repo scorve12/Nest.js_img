@@ -5,12 +5,22 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Upload } from './upload.entity';
 
 @Entity('marker')
 export class UploadMarker {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column('uuid')
+  uploadId: string;
+
+  @ManyToOne(() => Upload, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'uploadId' })
+  upload: Upload;
 
   @Column('decimal', { precision: 10, scale: 8 })
   markerLatitude: number;
